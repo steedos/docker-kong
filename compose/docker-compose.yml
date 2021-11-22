@@ -122,6 +122,7 @@ services:
   konga-prepare:
     image: pantsel/konga:next
     command: "-c prepare -a postgres -u postgresql://kong:kong@db:5432/konga_db"
+    profiles: ["database"]
     environment:
       DB_ADAPTER: postgres
       DB_HOST: db
@@ -140,6 +141,7 @@ services:
   #######################################
   konga:
     image: pantsel/konga:next
+    profiles: ["database"]
     restart: always
     networks:
       - kong-net
