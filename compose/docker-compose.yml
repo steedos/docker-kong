@@ -78,8 +78,8 @@ services:
       # - "${KONG_INBOUND_SSL_PROXY_LISTEN?Missing inbound proxy ssl host}:8443:8443/tcp"
       # Alternative is deactivating check 5.13 in the security bench, if we consider Kong's own config to be enough security here
 
-      - "127.0.0.1:8001:8001/tcp"
-      - "127.0.0.1:8444:8444/tcp"
+      - "0.0.0.0:8001:8001/tcp"
+      - "0.0.0.0:8444:8444/tcp"
     healthcheck:
       test: ["CMD", "kong", "health"]
       interval: 10s
@@ -95,7 +95,7 @@ services:
       - no-new-privileges
 
   db:
-    image: postgres:9.5
+    image: postgres:9.6
     profiles: ["database"]
     environment:
       POSTGRES_DB: ${KONG_PG_DATABASE:-kong}
@@ -116,6 +116,45 @@ services:
     volumes:
       - kong_data:/var/lib/postgresql/data
 
+  #######################################
+  # Konga database prepare
+  #######################################
+  konga-prepare:
+    image: pantsel/konga:next
+    command: "-c prepare -a postgres -u postgresql://kong:kong@db:5432/konga_db"
+    environment:
+      DB_ADAPTER: postgres
+      DB_HOST: db
+      DB_USER: kong
+      DB_PASSWORD: kong
+    networks:
+      - kong-net
+    restart: on-failure
+    links:
+      - db
+    depends_on:
+      - db
+
+  #######################################
+  # Konga: Kong GUI
+  #######################################
+  konga:
+    image: pantsel/konga:next
+    restart: always
+    networks:
+      - kong-net
+    environment:
+      DB_ADAPTER: postgres
+      DB_HOST: db
+      DB_USER: kong
+      DB_PASSWORD: kong
+      TOKEN_SECRET: km1GUr4RkcQD7DewhJPNXrCuZwcKmqjb
+      DB_DATABASE: konga_db
+      NODE_ENV: production
+    depends_on:
+      - db
+    ports:
+      - "1337:1337"
 secrets:
   kong_postgres_password:
     file: ./POSTGRES_PASSWORD
